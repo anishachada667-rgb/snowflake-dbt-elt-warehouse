@@ -1,0 +1,28 @@
+version: 2
+
+sources:
+  - name: retail_raw
+    description: "Synthetic Jaffle Shop retail data loaded by Airbyte."
+    database: RETAIL_ANALYTICS
+    schema: RAW
+
+    tables:
+      - name: orders
+        identifier: RAW_ORDERS
+        description: "One record per order."
+
+      - name: order_items
+        identifier: RAW_ORDER_ITEMS
+        description: "One record per order item."
+
+      - name: customers
+        identifier: RAW_CUSTOMERS
+        description: "One record per customer."
+
+      - name: products
+        identifier: RAW_PRODUCTS
+        description: "One record per product SKU."
+
+      - name: stores
+        identifier: RAW_STORES
+        description: "One record per store."

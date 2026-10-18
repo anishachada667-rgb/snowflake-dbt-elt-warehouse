@@ -1,0 +1,34 @@
+version: 2
+
+models:
+  - name: fct_orders
+    description: "Incremental order fact table with one row per order."
+    columns:
+      - name: order_id
+        data_tests:
+          - unique
+          - not_null
+
+      - name: customer_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_customers')
+                field: customer_id
+
+      - name: store_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_stores')
+                field: store_id
+
+      - name: record_hash
+        data_tests:
+          - not_null
+
+      - name: warehouse_updated_at
+        data_tests:
+          - not_null
