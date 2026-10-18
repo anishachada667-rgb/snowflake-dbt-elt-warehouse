@@ -1,0 +1,99 @@
+﻿name: Retail dbt CI
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: retail-dbt-ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  dbt-build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      DBT_PROFILES_DIR: ${{ runner.temp }}/dbt-profile
+      SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_CI_PRIVATE_KEY }}
+      SNOWFLAKE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_CI_KEY_PASSPHRASE }}
+      CI_SCHEMA: CI_PR_${{ github.event.pull_request.number || github.run_id }}
+
+    steps:
+      - name: Check out project
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dbt Snowflake
+        run: python -m pip install "dbt-snowflake>=1.10.6,<2"
+
+      - name: Configure CI credentials
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          profile_dir = Path(os.environ["DBT_PROFILES_DIR"])
+          profile_dir.mkdir(parents=True, exist_ok=True)
+
+          key = os.environ["SNOWFLAKE_PRIVATE_KEY"]
+          if "-----BEGIN ENCRYPTED PRIVATE KEY-----" not in key:
+              raise SystemExit("CI private key secret is missing or incorrectly formatted.")
+
+          key_path = profile_dir / "ci_key.p8"
+          key_path.write_text(key.strip() + "\n", encoding="utf-8")
+          key_path.chmod(0o600)
+
+          profile = {
+              "default": {
+                  "target": "ci",
+                  "outputs": {
+                      "ci": {
+                          "type": "snowflake",
+                          "account": "AVPLMAJ-RX31979",
+                          "user": "RETAIL_DBT_CI_USER",
+                          "role": "RETAIL_CI",
+                          "database": "RETAIL_ANALYTICS_CI",
+                          "warehouse": "RETAIL_ELT_WH",
+                          "schema": os.environ["CI_SCHEMA"],
+                          "threads": 2,
+                          "authenticator": "snowflake_jwt",
+                          "private_key_path": str(key_path),
+                          "private_key_passphrase": "{{ env_var('SNOWFLAKE_KEY_PASSPHRASE') }}"
+                      }
+                  }
+              }
+          }
+
+          (profile_dir / "profiles.yml").write_text(
+              json.dumps(profile, indent=2), encoding="utf-8"
+          )
+          PY
+
+      - name: Check Snowflake connection
+        run: dbt debug
+
+      - name: Install project dependencies
+        run: dbt deps
+
+      - name: Build models snapshots and tests
+        run: dbt build
+
+      - name: Verify incremental rerun
+        run: dbt build --select fct_orders
+
+      - name: Remove temporary credentials
+        if: always()
+        shell: bash
+        run: rm -rf "$DBT_PROFILES_DIR"
