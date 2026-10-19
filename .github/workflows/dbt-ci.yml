@@ -15,7 +15,7 @@ concurrency:
 jobs:
   dbt-build:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
 
     env:
@@ -26,10 +26,10 @@ jobs:
 
     steps:
       - name: Check out project
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -97,4 +97,5 @@ jobs:
         if: always()
         shell: bash
         run: rm -rf "$DBT_PROFILES_DIR"
+
 
