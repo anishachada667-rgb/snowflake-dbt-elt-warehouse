@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 20
 
     env:
-      DBT_PROFILES_DIR: ${{ runner.temp }}/dbt-profile
+      DBT_PROFILES_DIR: ${{ github.workspace }}/.ci-dbt-profile
       SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_CI_PRIVATE_KEY }}
       SNOWFLAKE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_CI_KEY_PASSPHRASE }}
       CI_SCHEMA: CI_PR_${{ github.event.pull_request.number || github.run_id }}
@@ -97,3 +97,4 @@ jobs:
         if: always()
         shell: bash
         run: rm -rf "$DBT_PROFILES_DIR"
+
